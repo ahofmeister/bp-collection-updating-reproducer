@@ -1,12 +1,9 @@
 package foods.test;
 
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.common.http.TestHTTPEndpoint;
+import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
-import io.restassured.response.Response;
 import org.acme.Food;
-import org.acme.FoodResource;
 import org.acme.FoodUnit;
 import org.acme.FoodUnitMapping;
 import org.junit.jupiter.api.Test;
@@ -27,39 +24,53 @@ public class FoodTest {
     EntityManager entityManager;
 
     @Test
-    public void test() {
-        // create food
+    @TestTransaction
+    public void testMappingWithoutBP() {
+        Set<FoodUnitMapping> unitMappings = new HashSet<>();
+        unitMappings.add(new FoodUnitMapping(200, FoodUnit.GRAM));
+        unitMappings.add(new FoodUnitMapping(12, FoodUnit.GRAM));
+        Food food = createFood(unitMappings);
+
+        entityManager.merge(food);
+        food = findFood();
+        assertEquals(2, food.unitMappings.size());
+    }
+
+    @Test
+    @TestTransaction
+    public void testPatchWithViews() {
+        Set<FoodUnitMapping> unitMappings = new HashSet<>();
+        unitMappings.add(new FoodUnitMapping(200, FoodUnit.GRAM));
+        Food food = createFood(unitMappings);
+        given().contentType(ContentType.JSON).body(food)
+                .when().post("foods");
+
+        verifyUnitMappings(1);
+
+        // patch food
+        food.unitMappings.add(new FoodUnitMapping(100, FoodUnit.PORTION));
+        food.name = "Banana";
+        given().pathParam("id", food.id).body(food).contentType(ContentType.JSON).patch("foods/{id}");
+
+        verifyUnitMappings(2);
+    }
+
+    private void verifyUnitMappings(int size) {
+        Food foundFood = findFood();
+        assertEquals(size, foundFood.unitMappings.size());
+    }
+
+
+    private Food createFood(Set<FoodUnitMapping> unitMappings) {
         Food food = new Food();
         String id = "12";
         food.name = "Apple";
         food.id = id;
-
-        Set<FoodUnitMapping> unitMappings = new HashSet<>();
-        unitMappings.add(new FoodUnitMapping(200, FoodUnit.GRAM));
-
         food.unitMappings = unitMappings;
-
-        given().contentType(ContentType.JSON).body(food)
-                .when().post("foods");
-
-
-        // verify created food
-        Food foundFood = findFoood();
-        assertEquals(1, foundFood.unitMappings.size());
-
-
-        // patch food
-        food.unitMappings.add(new FoodUnitMapping(100, FoodUnit.GRAM));
-        food.name = "Banana";
-        given().pathParam("id", id).body(food).contentType(ContentType.JSON).patch("foods/{id}");
-
-        // verify patched food
-        foundFood = findFoood();
-        assertEquals(2, foundFood.unitMappings.size());
-
+        return food;
     }
 
-    private Food findFoood() {
+    private Food findFood() {
         return entityManager.find(Food.class, "12");
     }
 
