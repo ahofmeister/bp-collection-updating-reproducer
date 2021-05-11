@@ -15,9 +15,9 @@ public interface FoodUpdateView {
 
     void setId(String id);
 
-    Set<FoodUnitMapping> getUnitMappings();
+    Set<FoodUnitUpdateView> getUnitMappings();
 
-    void setUnitMappings(Set<FoodUnitMapping> unitMappings);
+    void setUnitMappings(Set<FoodUnitUpdateView> unitMappings);
 
     String getName();
 
